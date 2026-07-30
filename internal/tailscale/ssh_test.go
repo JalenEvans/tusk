@@ -402,6 +402,7 @@ func TestEngine_SSH_BinaryNotFound(t *testing.T) {
 func TestEngine_SSH_NotConnected(t *testing.T) {
 	binaryPath := getFakeBinaryPath(t)
 	engine := New(binaryPath)
+	engine.SetTestMode(true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

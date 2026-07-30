@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -25,14 +24,22 @@ type Engine struct {
 	connected  bool
 	exitErr    error
 	exitOnce   sync.Once
+	isTestMode bool
 }
 
-// New creates a new Engine for the given tailscaled binary path.
 func New(binaryPath string) *Engine {
 	return &Engine{
 		binaryPath: binaryPath,
 		done:       make(chan struct{}),
 	}
+}
+
+// SetTestMode controls whether the engine runs in test mode,
+// which changes behavior for test binaries (e.g., crash simulation).
+func (e *Engine) SetTestMode(enabled bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.isTestMode = enabled
 }
 
 // isTestBinary checks if the binary is a Go test binary.
@@ -41,55 +48,19 @@ func isTestBinary(path string) bool {
 	return strings.HasSuffix(base, ".test")
 }
 
-// isCrashDetectionTest checks if we're being called from a crash detection test
-// by examining the call stack.
-func isCrashDetectionTest() bool {
-	// Walk up the call stack to find test function names
-	for i := 0; i < 10; i++ {
-		_, file, line, ok := runtime.Caller(i)
-		if !ok {
-			break
-		}
-		// Check if we're in a test file
-		if strings.HasSuffix(file, "_test.go") {
-			// Get the function name
-			pc, _, _, ok := runtime.Caller(i)
-			if ok {
-				fn := runtime.FuncForPC(pc)
-				if fn != nil {
-					name := fn.Name()
-					// Check if it's a crash detection test
-					if strings.Contains(name, "DetectsCrash") {
-						return true
-					}
-				}
-			}
-			// Also check by line number pattern (crash tests are around lines 322-367)
-			if line >= 320 && line <= 370 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // Start launches the tailscaled process with the required arguments.
 // Returns an error if the binary is not found or if the engine is already running.
 func (e *Engine) Start(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// Check if already running
 	if e.started && e.cmd != nil && e.cmd.Process != nil {
-		// Check if process is still alive
 		if e.cmd.Process.Signal(syscall.Signal(0)) == nil {
 			return errors.New("engine already running")
 		}
 	}
 
-	// Verify binary exists
 	if _, err := exec.LookPath(e.binaryPath); err != nil {
-		// Check if it's an absolute/relative path that exists
 		if info, statErr := os.Stat(e.binaryPath); statErr != nil {
 			return fmt.Errorf("binary not found: %s: %w", e.binaryPath, err)
 		} else if info.IsDir() {
@@ -97,21 +68,17 @@ func (e *Engine) Start(ctx context.Context) error {
 		}
 	}
 
-	// Build command args and env
 	var args []string
 	var env []string
 
 	if isTestBinary(e.binaryPath) {
-		// Test binary: invoke fake daemon mode
 		args = []string{"-test.run=TestFakeDaemon"}
-		// Use crash mode for crash detection tests, default for others
-		if isCrashDetectionTest() {
+		if e.isTestMode {
 			env = append(os.Environ(), "FAKE_DAEMON_MODE=crash")
 		} else {
 			env = append(os.Environ(), "FAKE_DAEMON_MODE=default")
 		}
 	} else {
-		// Production binary: pass tailscaled flags
 		args = []string{"--state=mem", "--tun=userspace-networking"}
 	}
 
@@ -120,7 +87,6 @@ func (e *Engine) Start(ctx context.Context) error {
 	e.cmd.Stdout = os.Stdout
 	e.cmd.Stderr = os.Stderr
 
-	// Start the process
 	if err := e.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start tailscaled: %w", err)
 	}
@@ -128,15 +94,12 @@ func (e *Engine) Start(ctx context.Context) error {
 	e.started = true
 	e.stopped = false
 	
-	// For test binaries, mark as connected since fake daemon represents a connected state
 	if isTestBinary(e.binaryPath) {
 		e.connected = true
 	}
 
-	// Monitor process exit in background
 	go e.monitor()
 
-	// Watch for context cancellation to stop the process
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -144,18 +107,15 @@ func (e *Engine) Start(ctx context.Context) error {
 			stopped := e.stopped
 			e.mu.RUnlock()
 			if !stopped {
-				// Context cancelled, stop the process
 				_ = e.Stop(context.Background())
 			}
 		case <-e.done:
-			// Process already exited
 		}
 	}()
 
 	return nil
 }
 
-// monitor watches for process exit and closes the done channel.
 func (e *Engine) monitor() {
 	if e.cmd == nil || e.cmd.Process == nil {
 		return
@@ -165,7 +125,6 @@ func (e *Engine) monitor() {
 
 	e.exitOnce.Do(func() {
 		e.mu.Lock()
-		// If Stop() was called, treat as clean shutdown
 		if e.stopped {
 			e.exitErr = nil
 		} else {
@@ -187,25 +146,20 @@ func (e *Engine) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	// Mark as stopped
 	e.stopped = true
 	proc := e.cmd.Process
 	e.mu.Unlock()
 
-	// Check if already exited
 	select {
 	case <-e.done:
 		return nil
 	default:
 	}
 
-	// Send SIGTERM
 	if err := proc.Signal(syscall.SIGTERM); err != nil {
-		// Process might have already exited
 		if errors.Is(err, os.ErrProcessDone) {
 			return nil
 		}
-		// Wait a bit and check again
 		time.Sleep(10 * time.Millisecond)
 		select {
 		case <-e.done:
@@ -214,17 +168,14 @@ func (e *Engine) Stop(ctx context.Context) error {
 		}
 	}
 
-	// Wait for exit or context cancellation
 	select {
 	case <-e.done:
 		return nil
 	case <-ctx.Done():
-		// Context cancelled or timed out, escalate to SIGKILL
 		return e.kill()
 	}
 }
 
-// kill sends SIGKILL to force termination.
 func (e *Engine) kill() error {
 	e.mu.RLock()
 	if e.cmd == nil || e.cmd.Process == nil {
@@ -234,7 +185,6 @@ func (e *Engine) kill() error {
 	proc := e.cmd.Process
 	e.mu.RUnlock()
 
-	// Send SIGKILL
 	if err := proc.Signal(syscall.SIGKILL); err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
 			return nil
@@ -242,7 +192,6 @@ func (e *Engine) kill() error {
 		return fmt.Errorf("failed to send SIGKILL: %w", err)
 	}
 
-	// Wait for process to exit
 	select {
 	case <-e.done:
 		return nil
@@ -260,14 +209,12 @@ func (e *Engine) IsRunning() bool {
 		return false
 	}
 
-	// Check if done channel is closed
 	select {
 	case <-e.done:
 		return false
 	default:
 	}
 
-	// Try to signal the process (signal 0 checks existence)
 	err := e.cmd.Process.Signal(syscall.Signal(0))
 	return err == nil
 }

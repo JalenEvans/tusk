@@ -322,6 +322,7 @@ func TestEngine_Wait_ReturnsExitError(t *testing.T) {
 func TestEngine_DetectsCrash(t *testing.T) {
 	binaryPath := getFakeBinaryPath(t)
 	engine := New(binaryPath)
+	engine.SetTestMode(true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -349,6 +350,7 @@ func TestEngine_DetectsCrash(t *testing.T) {
 func TestEngine_DetectsCrash_ExitCode(t *testing.T) {
 	binaryPath := getFakeBinaryPath(t)
 	engine := New(binaryPath)
+	engine.SetTestMode(true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

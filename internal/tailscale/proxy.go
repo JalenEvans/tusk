@@ -14,7 +14,6 @@ type Proxy struct {
 	listener net.Listener
 }
 
-// NewProxy creates a new Proxy that will listen on the given address.
 func NewProxy(addr string) *Proxy {
 	return &Proxy{addr: addr}
 }
@@ -63,7 +62,6 @@ func (p *Proxy) Stop() error {
 // For now it performs a minimal handshake and closes the connection.
 func handleSOCKSConnection(conn net.Conn) {
 	defer conn.Close()
-	// Read the client greeting (or any initial data)
 	buf := make([]byte, 1024)
 	conn.Read(buf)
 }
