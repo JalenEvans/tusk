@@ -58,6 +58,17 @@ func (p *Proxy) Stop() error {
 	return nil
 }
 
+// Addr returns the address the proxy is listening on.
+// Returns nil if the proxy has not been started.
+func (p *Proxy) Addr() net.Addr {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.listener == nil {
+		return nil
+	}
+	return p.listener.Addr()
+}
+
 // handleSOCKSConnection handles a single SOCKS5 client connection.
 // For now it performs a minimal handshake and closes the connection.
 func handleSOCKSConnection(conn net.Conn) {

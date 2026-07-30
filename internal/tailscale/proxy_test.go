@@ -9,7 +9,7 @@ import (
 
 // TestProxy_Start_Success verifies proxy server starts and listens on the specified address
 func TestProxy_Start_Success(t *testing.T) {
-	proxy := NewProxy("localhost:1055")
+	proxy := NewProxy(":0")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -29,7 +29,7 @@ func TestProxy_Start_Success(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify the proxy is listening by attempting to connect
-	conn, err := net.DialTimeout("tcp", "localhost:1055", 1*time.Second)
+	conn, err := net.DialTimeout("tcp", proxy.Addr().String(), 1*time.Second)
 	if err != nil {
 		t.Errorf("Failed to connect to proxy: %v", err)
 	} else {
@@ -39,7 +39,7 @@ func TestProxy_Start_Success(t *testing.T) {
 
 // TestProxy_Stop_Graceful verifies proxy shuts down cleanly and releases the port
 func TestProxy_Stop_Graceful(t *testing.T) {
-	proxy := NewProxy("localhost:1055")
+	proxy := NewProxy(":0")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -52,6 +52,9 @@ func TestProxy_Stop_Graceful(t *testing.T) {
 	// Give the proxy time to start
 	time.Sleep(100 * time.Millisecond)
 
+	// Capture the address before stopping (proxy.Addr returns nil after Stop)
+	addr := proxy.Addr().String()
+
 	// Stop the proxy
 	if err := proxy.Stop(); err != nil {
 		t.Errorf("Proxy.Stop() failed: %v", err)
@@ -61,7 +64,7 @@ func TestProxy_Stop_Graceful(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify the port is released by attempting to connect (should fail)
-	conn, err := net.DialTimeout("tcp", "localhost:1055", 500*time.Millisecond)
+	conn, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
 	if err == nil {
 		conn.Close()
 		t.Error("Expected proxy to stop listening after Stop(), but connection succeeded")
@@ -72,7 +75,7 @@ func TestProxy_Stop_Graceful(t *testing.T) {
 func TestEngine_FullLifecycle(t *testing.T) {
 	binaryPath := getFakeBinaryPath(t)
 	engine := New(binaryPath)
-	proxy := NewProxy("localhost:1055")
+	proxy := NewProxy(":0")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -102,7 +105,7 @@ func TestEngine_FullLifecycle(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify proxy is listening
-	conn, err := net.DialTimeout("tcp", "localhost:1055", 1*time.Second)
+	conn, err := net.DialTimeout("tcp", proxy.Addr().String(), 1*time.Second)
 	if err != nil {
 		t.Errorf("Proxy not listening after start: %v", err)
 	} else {
