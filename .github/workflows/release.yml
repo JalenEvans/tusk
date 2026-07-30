@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [linux, darwin, windows]
+        arch: [amd64, arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Build
+        run: GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o tusk-${{ matrix.os }}-${{ matrix.arch }} ./cmd/tusk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tusk-${{ matrix.os }}-${{ matrix.arch }}
+          path: tusk-${{ matrix.os }}-${{ matrix.arch }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tusk-*
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: tusk-*
