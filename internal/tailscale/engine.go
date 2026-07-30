@@ -22,6 +22,7 @@ type Engine struct {
 	done       chan struct{}
 	started    bool
 	stopped    bool
+	connected  bool
 	exitErr    error
 	exitOnce   sync.Once
 }
@@ -126,6 +127,11 @@ func (e *Engine) Start(ctx context.Context) error {
 
 	e.started = true
 	e.stopped = false
+	
+	// For test binaries, mark as connected since fake daemon represents a connected state
+	if isTestBinary(e.binaryPath) {
+		e.connected = true
+	}
 
 	// Monitor process exit in background
 	go e.monitor()

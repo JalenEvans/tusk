@@ -28,6 +28,9 @@ func (e *Engine) Connect(ctx context.Context, authKey string) error {
 
 	// For test binaries, skip actual execution
 	if isTestBinary(e.binaryPath) {
+		e.mu.Lock()
+		e.connected = true
+		e.mu.Unlock()
 		return nil
 	}
 
@@ -37,6 +40,11 @@ func (e *Engine) Connect(ctx context.Context, authKey string) error {
 	if err != nil {
 		return fmt.Errorf("tailscale up failed: %w: %s", err, string(output))
 	}
+	
+	e.mu.Lock()
+	e.connected = true
+	e.mu.Unlock()
+	
 	return nil
 }
 
