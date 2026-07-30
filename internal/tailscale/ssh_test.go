@@ -326,7 +326,9 @@ func TestEngine_SSHOverProxy_ProxyUnreachable(t *testing.T) {
 	// Verify port is not listening
 	conn, err := net.DialTimeout("tcp", proxyAddr, 100*time.Millisecond)
 	if err == nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			t.Logf("failed to close connection: %v", err)
+		}
 		t.Skipf("Port %s is unexpectedly listening", proxyAddr)
 	}
 

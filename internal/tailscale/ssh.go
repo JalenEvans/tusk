@@ -90,7 +90,7 @@ func (e *Engine) SSHOverProxy(ctx context.Context, target string, proxyAddr stri
 	if err != nil {
 		return fmt.Errorf("proxy unreachable at %s: %w", proxyAddr, err)
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	if isTestBinary(e.binaryPath) {
 		return nil
