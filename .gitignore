@@ -1,0 +1,21 @@
+# Binaries
+/tusk
+/tuskd
+bin/
+
+# Image files
+*.img
+
+# Go vendor
+vendor/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

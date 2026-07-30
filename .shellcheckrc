@@ -1,0 +1,2 @@
+# ShellCheck configuration for launcher scripts
+disable=SC2034,SC2086

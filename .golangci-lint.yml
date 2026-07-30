@@ -1,0 +1,16 @@
+run:
+  go: "1.22"
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  govet:
+    check-shadowing: false
