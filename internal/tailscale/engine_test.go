@@ -3,10 +3,7 @@ package tailscale
 import (
 	"context"
 	"os"
-	"os/exec"
 	"os/signal"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -57,22 +54,23 @@ func getFakeBinaryPath(t *testing.T) string {
 
 // startFakeDaemon starts a fake daemon process with the given mode.
 // This is a helper for tests that need direct process control.
-func startFakeDaemon(t *testing.T, mode string) *exec.Cmd {
-	t.Helper()
-	binaryPath := getFakeBinaryPath(t)
-	cmd := exec.Command(binaryPath, "-test.run=TestFakeDaemon")
-	cmd.Env = append(os.Environ(), "FAKE_DAEMON_MODE="+mode)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("failed to start fake daemon: %v", err)
-	}
-
-	// Give it a moment to start
-	time.Sleep(50 * time.Millisecond)
-
-	return cmd
-}
+// Kept for reference but currently unused.
+// func startFakeDaemon(t *testing.T, mode string) *exec.Cmd {
+// 	t.Helper()
+// 	binaryPath := getFakeBinaryPath(t)
+// 	cmd := exec.Command(binaryPath, "-test.run=TestFakeDaemon")
+// 	cmd.Env = append(os.Environ(), "FAKE_DAEMON_MODE="+mode)
+// 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+//
+// 	if err := cmd.Start(); err != nil {
+// 		t.Fatalf("failed to start fake daemon: %v", err)
+// 	}
+//
+// 	// Give it a moment to start
+// 	time.Sleep(50 * time.Millisecond)
+//
+// 	return cmd
+// }
 
 // TestFakeDaemon is a placeholder that gets invoked by the fake binary.
 // It calls fakeDaemon() which handles different test scenarios.
@@ -421,11 +419,12 @@ func TestEngine_DoubleStop_NoError(t *testing.T) {
 }
 
 // Helper function to get root directory (for reference)
-func getRootDir(t *testing.T) string {
-	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("failed to get current file path")
-	}
-	return filepath.Dir(filepath.Dir(filepath.Dir(filename)))
-}
+// Kept for reference but currently unused.
+// func getRootDir(t *testing.T) string {
+// 	t.Helper()
+// 	_, filename, _, ok := runtime.Caller(0)
+// 	if !ok {
+// 		t.Fatal("failed to get current file path")
+// 	}
+// 	return filepath.Dir(filepath.Dir(filepath.Dir(filename)))
+// }

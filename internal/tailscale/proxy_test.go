@@ -33,7 +33,11 @@ func TestProxy_Start_Success(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to connect to proxy: %v", err)
 	} else {
-		conn.Close()
+		func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("failed to close connection: %v", err)
+			}
+		}()
 	}
 }
 
@@ -66,7 +70,11 @@ func TestProxy_Stop_Graceful(t *testing.T) {
 	// Verify the port is released by attempting to connect (should fail)
 	conn, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
 	if err == nil {
-		conn.Close()
+		func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("failed to close connection: %v", err)
+			}
+		}()
 		t.Error("Expected proxy to stop listening after Stop(), but connection succeeded")
 	}
 }
@@ -109,7 +117,11 @@ func TestEngine_FullLifecycle(t *testing.T) {
 	if err != nil {
 		t.Errorf("Proxy not listening after start: %v", err)
 	} else {
-		conn.Close()
+		func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("failed to close connection: %v", err)
+			}
+		}()
 	}
 
 	// Step 5: Stop proxy

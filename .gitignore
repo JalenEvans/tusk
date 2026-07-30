@@ -1,6 +1,6 @@
 # Binaries
-tusk
-tuskd
+/tusk
+/tuskd
 bin/
 
 # Image files

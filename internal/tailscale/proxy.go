@@ -72,7 +72,9 @@ func (p *Proxy) Addr() net.Addr {
 // handleSOCKSConnection handles a single SOCKS5 client connection.
 // For now it performs a minimal handshake and closes the connection.
 func handleSOCKSConnection(conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	buf := make([]byte, 1024)
-	conn.Read(buf)
+	if _, err := conn.Read(buf); err != nil {
+		return
+	}
 }
